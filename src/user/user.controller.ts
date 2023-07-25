@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Req,
   UseGuards,
   UsePipes,
@@ -16,6 +17,7 @@ import { LoginUserDto } from '@app/user/dto/loginUser.dto';
 import { ExpressRequestInterface } from '@app/types/expressRequest.interface';
 import { User } from '@app/user/decorators/user.decorator';
 import { AuthGuard } from '@app/user/guards/auth.guard';
+import { UpdateUserDto } from '@app/user/dto/updateUser.dto';
 
 @Controller()
 export class UserController {
@@ -36,6 +38,19 @@ export class UserController {
     @Body('user') loginUserDto: LoginUserDto,
   ): Promise<UserResponseInterface> {
     const user: UserEntity = await this.userService.login(loginUserDto);
+    return this.userService.buildUserResponse(user);
+  }
+
+  @Put('user/update')
+  @UseGuards(AuthGuard)
+  async updateCurrentUser(
+    @User('id') currentUserId: number,
+    @Body('user') updateUserDto: UpdateUserDto,
+  ): Promise<UserResponseInterface> {
+    const user = await this.userService.updateUser(
+      currentUserId,
+      updateUserDto,
+    );
     return this.userService.buildUserResponse(user);
   }
 

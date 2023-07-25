@@ -8,6 +8,7 @@ import { sign } from 'jsonwebtoken';
 import { JWT_SECRET } from '@app/config';
 import { UserResponseInterface } from '@app/user/types/userResponse.interface';
 import { LoginUserDto } from '@app/user/dto/loginUser.dto';
+import { UpdateUserDto } from '@app/user/dto/updateUser.dto';
 
 @Injectable()
 export class UserService {
@@ -37,6 +38,14 @@ export class UserService {
     Object.assign(newUser, createUserDto);
 
     return await this.userRepository.save(newUser);
+  }
+
+  async updateUser(userId, updateUserDto: UpdateUserDto): Promise<UserEntity> {
+    const user = await this.findById(userId);
+
+    Object.assign(user, updateUserDto);
+
+    return await this.userRepository.save(updateUserDto);
   }
 
   async login(loginUserDto: LoginUserDto): Promise<UserEntity> {
