@@ -66,6 +66,6 @@ export class BirthdayEntity {
   @Column({ default: '' })
   dayOfWeekOfJubilee: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.birthdays)
+  @ManyToOne(() => UserEntity, (user) => user.birthdays, { eager: true })
   author: UserEntity;
 }

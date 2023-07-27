@@ -4,14 +4,17 @@ import { CreateBirthdayDto } from '@app/birthdays/dto/createBirthday.dto';
 import { BirthdayEntity } from '@app/birthdays/birthday.entity';
 import { Months } from '@app/birthdays/types/months.type';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { getRepository, Repository, SelectQueryBuilder } from 'typeorm';
 import { BirthdayResponseInterface } from '@app/birthdays/types/birthdayResponse.interface';
+import { BirthdaysResponseInterface } from '@app/birthdays/types/birthdaysResponse.interface';
 
 @Injectable()
 export class BirthdayService {
   constructor(
     @InjectRepository(BirthdayEntity)
     private readonly birthdayRepository: Repository<BirthdayEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {}
 
   async create(
@@ -50,6 +53,104 @@ export class BirthdayService {
     );
 
     return await this.birthdayRepository.save(birthday);
+  }
+
+  async getBirthdayList(
+    currentUserId: number,
+    query: any,
+  ): Promise<BirthdaysResponseInterface> {
+    const queryBuilder: SelectQueryBuilder<BirthdayEntity> = getRepository(
+      BirthdayEntity,
+    )
+      .createQueryBuilder('birthdays')
+      .leftJoinAndSelect('birthdays.author', 'author');
+
+    // Admin get all list
+    if (currentUserId !== 1) {
+      queryBuilder.andWhere('birthdays.authorId = :id', {
+        id: currentUserId,
+      });
+    }
+
+    const birthdays: BirthdayEntity[] = await queryBuilder.getMany();
+    const birthdayCount: number = await queryBuilder.getCount();
+
+    if (query?.orderBy === 'month') {
+      return {
+        birthdaysList: this.filterBirthdaysByMonth(birthdays),
+        birthdayCount,
+      };
+    }
+
+    return {
+      birthdaysList: birthdays,
+      birthdayCount,
+    };
+  }
+
+  filterBirthdaysByMonth(data: BirthdayEntity[]) {
+    const groupedData: { [key: string]: BirthdayEntity[] } = {};
+
+    const currentDate: Date = new Date();
+    const currentMonth: number = currentDate.getMonth();
+    for (let i = 0; i < 12; i++) {
+      const month = new Date(currentDate.getFullYear(), i, 1).toLocaleString(
+        'en-US',
+        { month: 'long' },
+      );
+      groupedData[month.toLowerCase()] = [];
+    }
+
+    data.forEach((birthday): void => {
+      const month: string = new Date(
+        birthday.yearOfBirth,
+        birthday.monthOfBirth - 1,
+        birthday.dayOfBirth,
+      ).toLocaleString('en-US', { month: 'long' });
+
+      groupedData[month.toLowerCase()].push(birthday);
+    });
+
+    return this.sortMonths(groupedData, currentMonth);
+  }
+
+  sortMonths(
+    obj: { [key: string]: BirthdayEntity[] },
+    startMonth: number,
+  ): { [key: string]: BirthdayEntity[] } {
+    const monthsInOrder: string[] = [
+      'january',
+      'february',
+      'march',
+      'april',
+      'may',
+      'june',
+      'july',
+      'august',
+      'september',
+      'october',
+      'november',
+      'december',
+    ];
+
+    const startMonthName: string = monthsInOrder[startMonth];
+
+    if (!(startMonthName in obj)) {
+      // If the specified month is not found in the object, return the original object without changes.
+      return obj;
+    }
+
+    const sortedObj: { [key: string]: BirthdayEntity[] } = {};
+    const sortedMonths: string[] = [
+      ...monthsInOrder.slice(startMonth),
+      ...monthsInOrder.slice(0, startMonth),
+    ];
+
+    sortedMonths.forEach((monthName: string): void => {
+      sortedObj[monthName] = obj[monthName];
+    });
+
+    return sortedObj;
   }
 
   calculateAge(year: number): number {
